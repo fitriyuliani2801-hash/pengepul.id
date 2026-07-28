@@ -11,6 +11,7 @@ use App\Models\KasPengepul;
 use App\Models\StokGudang;
 use App\Models\SuratKeluarModel;
 use App\Models\Notifikasi;
+use App\Models\User;
 
 class PengepulDriverController extends Controller
 {
@@ -119,14 +120,27 @@ class PengepulDriverController extends Controller
                 }
             }
 
-            // 5. Catat di Kas Pengepul (Kas Pengeluaran)
+            // 5. Catat di Kas Pengepul (Kas Pengeluaran) & Tambah Saldo Digital Warga
             if ($payout > 0) {
                 KasPengepul::create([
                     'order_id' => $order->id,
                     'tipe_transaksi' => 'pengeluaran',
                     'jumlah_uang' => $payout,
-                    'keterangan' => 'Pembayaran sampah ' . ($request->payment_method === 'cash' ? 'Tunai (Cash)' : 'Transfer Bank/E-Wallet') . ' ke Warga via Order ' . $order->order_no
+                    'keterangan' => 'Pembayaran sampah ' . ($request->payment_method === 'cash' ? 'Tunai (Cash)' : 'Transfer Digital Otomatis') . ' ke Warga via Order ' . $order->order_no
                 ]);
+
+                // Otomatis Tambah Saldo Digital Warga
+                $warga = User::find($order->user_id);
+                if ($warga) {
+                    $warga->increment('saldo', $payout);
+
+                    Notifikasi::create([
+                        'user_id' => $warga->id,
+                        'judul' => 'Transfer Otomatis Berhasil',
+                        'pesan' => 'Transfer otomatis sebesar Rp ' . number_format($payout, 0, ',', '.') . ' telah masuk ke Saldo Akun Anda dari Order ' . $order->order_no,
+                        'url' => route('pengepul.warga.index')
+                    ]);
+                }
             }
 
             // Jika ada biaya jemput, catat sebagai kas masuk (pemasukan/ongkir operasional)

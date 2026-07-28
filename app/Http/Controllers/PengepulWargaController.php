@@ -336,4 +336,117 @@ class PengepulWargaController extends Controller
             'updated_at' => $order->updated_at->format('H:i, d M Y')
         ]);
     }
+
+    public function cancelOrder($id)
+    {
+        $order = PenjemputanOrder::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        if (in_array($order->status, ['completed', 'cancelled'])) {
+            return redirect()->back()->withErrors(['msg' => 'Pesanan ini sudah ' . $order->status . ' dan tidak dapat dibatalkan.']);
+        }
+
+        $order->update(['status' => 'cancelled']);
+
+        if ($order->id_surat_keluar) {
+            SuratKeluarModel::where('id_surat_keluar', $order->id_surat_keluar)->update([
+                'status_proses' => 'ditolak',
+                'keterangan' => 'Pesanan dibatalkan oleh Warga/Customer.'
+            ]);
+        }
+
+        // Notifikasi ke Admin & Driver
+        User::whereIn('role', ['admin', 'staff'])->where('status', 'active')->each(function($admin) use ($order) {
+            Notifikasi::create([
+                'user_id' => $admin->id,
+                'judul' => 'Order Dibatalkan Warga',
+                'pesan' => 'Order No. ' . $order->order_no . ' telah dibatalkan oleh Warga.',
+                'url' => route('pengepul.admin.index')
+            ]);
+        });
+
+        if ($order->driver_id) {
+            Notifikasi::create([
+                'user_id' => $order->driver_id,
+                'judul' => 'Order Dibatalkan Warga',
+                'pesan' => 'Order No. ' . $order->order_no . ' telah dibatalkan oleh Warga.',
+                'url' => route('pengepul.driver.index')
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Order penjemputan sampah berhasil dibatalkan.');
+    }
+
+    public function tarikSaldo(Request $request)
+    {
+        $request->validate([
+            'jumlah' => 'required|numeric|min:10000',
+            'tujuan_pembayaran' => 'required|string',
+            'no_rekening' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+
+        if ($user->saldo < $request->jumlah) {
+            return redirect()->back()->withErrors(['msg' => 'Saldo akun Anda tidak mencukupi untuk melakukan penarikan Rp ' . number_format($request->jumlah, 0, ',', '.')]);
+        }
+
+        DB::beginTransaction();
+        try {
+            $payoutResult = \App\Services\PaymentGatewayService::sendRealPayout(
+                $request->tujuan_pembayaran,
+                $request->no_rekening,
+                $request->jumlah,
+                'Pencairan Saldo Sampah Customer: ' . $user->name
+            );
+
+            $user->decrement('saldo', $request->jumlah);
+
+            \App\Models\PenarikanSaldo::create([
+                'user_id' => $user->id,
+                'jumlah' => $request->jumlah,
+                'tujuan_pembayaran' => $request->tujuan_pembayaran,
+                'no_rekening' => $request->no_rekening,
+                'reference_no' => $payoutResult['reference_no'],
+                'bank_ref_id' => $payoutResult['bank_ref_id'],
+                'fee' => 0,
+                'status' => 'completed',
+                'keterangan' => 'Pencairan saldo otomatis via Gateway Realtime ke ' . $request->tujuan_pembayaran . ' (' . $request->no_rekening . ')'
+            ]);
+
+            \App\Models\KasPengepul::create([
+                'order_id' => null,
+                'tipe_transaksi' => 'pengeluaran',
+                'jumlah_uang' => $request->jumlah,
+                'keterangan' => 'Pencairan Dana Realtime Customer ' . $user->name . ' ke ' . $request->tujuan_pembayaran . ' (' . $request->no_rekening . ') Ref: ' . $payoutResult['bank_ref_id']
+            ]);
+
+            User::whereIn('role', ['admin', 'staff'])->where('status', 'active')->each(function($admin) use ($user, $request, $payoutResult) {
+                Notifikasi::create([
+                    'user_id' => $admin->id,
+                    'judul' => 'Transfer Uang Asli Berhasil',
+                    'pesan' => 'Pencairan Saldo Rp ' . number_format($request->jumlah, 0, ',', '.') . ' oleh ' . $user->name . ' telah terkirim via BI-FAST Ref: ' . $payoutResult['bank_ref_id'],
+                    'url' => route('pengepul.admin.index')
+                ]);
+            });
+
+            DB::commit();
+
+            return redirect()->back()
+                ->with('success', 'Transfer uang asli sebesar Rp ' . number_format($request->jumlah, 0, ',', '.') . ' berhasil dikirim ke rekening ' . $request->tujuan_pembayaran . ' (' . $request->no_rekening . ')! Ref BI-FAST: ' . $payoutResult['bank_ref_id'])
+                ->with('open_payout_receipt', [
+                    'amount' => $request->jumlah,
+                    'bank' => $request->tujuan_pembayaran,
+                    'account' => $request->no_rekening,
+                    'name' => $user->name,
+                    'ref_no' => $payoutResult['reference_no'],
+                    'bank_ref' => $payoutResult['bank_ref_id'],
+                    'date' => date('d M Y, H:i') . ' WIB'
+                ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withErrors(['msg' => 'Gagal memproses penarikan saldo: ' . $e->getMessage()]);
+        }
+    }
 }

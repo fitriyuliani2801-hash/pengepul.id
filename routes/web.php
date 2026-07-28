@@ -10,6 +10,7 @@ use App\Http\Controllers\NotifikasiController;
 use App\Http\Controllers\PengepulWargaController;
 use App\Http\Controllers\PengepulAdminController;
 use App\Http\Controllers\PengepulDriverController;
+use App\Http\Controllers\AbsensiController;
 
 // 1. Route Login & Register
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -93,12 +94,17 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/pengepul/warga/cart/remove/{id}', [PengepulWargaController::class, 'removeFromCart'])->middleware('role:admin,staff,customer')->name('pengepul.warga.cart.remove');
     Route::post('/pengepul/warga/cart/clear', [PengepulWargaController::class, 'clearCart'])->middleware('role:admin,staff,customer')->name('pengepul.warga.cart.clear');
     Route::post('/pengepul/warga/checkout', [PengepulWargaController::class, 'checkout'])->middleware('role:admin,staff,customer')->name('pengepul.warga.checkout');
+    Route::post('/pengepul/warga/order/cancel/{id}', [PengepulWargaController::class, 'cancelOrder'])->middleware('role:admin,staff,customer')->name('pengepul.warga.order.cancel');
+    Route::post('/pengepul/warga/saldo/tarik', [PengepulWargaController::class, 'tarikSaldo'])->middleware('role:admin,staff,customer')->name('pengepul.warga.saldo.tarik');
 
     // B. Admin & Staff Routes
     Route::get('/pengepul/admin', [PengepulAdminController::class, 'index'])->middleware('role:admin,staff')->name('pengepul.admin.index');
     Route::put('/pengepul/admin/katalog/price/{id}', [PengepulAdminController::class, 'updatePrice'])->middleware('role:admin,staff')->name('pengepul.admin.katalog.update-price');
     Route::post('/pengepul/admin/assign/{id}', [PengepulAdminController::class, 'assignDriver'])->middleware('role:admin,staff')->name('pengepul.admin.assign-driver');
     Route::post('/pengepul/admin/pembayaran/proses/{id}', [PengepulAdminController::class, 'prosesPembayaran'])->middleware('role:admin,staff')->name('pengepul.admin.pembayaran.proses');
+    Route::post('/pengepul/admin/topup', [PengepulAdminController::class, 'topUpSaldo'])->middleware('role:admin,staff')->name('pengepul.admin.topup');
+    Route::post('/pengepul/admin/order/cancel/{id}', [PengepulAdminController::class, 'cancelOrder'])->middleware('role:admin,staff')->name('pengepul.admin.order.cancel');
+    Route::post('/pengepul/admin/distribusi/store', [PengepulAdminController::class, 'prosesDistribusiSupplier'])->middleware('role:admin,staff')->name('pengepul.admin.distribusi.store');
 
     // C. Driver Routes
     Route::get('/pengepul/driver', [PengepulDriverController::class, 'index'])->middleware('role:driver')->name('pengepul.driver.index');
@@ -115,4 +121,12 @@ Route::middleware(['auth'])->group(function () {
     // E. Profile Routes (All Authenticated Roles)
     Route::get('/profil', [PengepulWargaController::class, 'showProfile'])->name('profil.index');
     Route::post('/profil/update', [PengepulWargaController::class, 'updateProfile'])->name('profil.update');
+
+    // F. Modul Absensi Scan Wajah Karyawan (Staff, Driver, Admin)
+    Route::get('/absensi/scan', [AbsensiController::class, 'scanIndex'])->middleware('role:admin,staff,driver')->name('absensi.scan');
+    Route::post('/absensi/scan/proses', [AbsensiController::class, 'prosesScan'])->middleware('role:admin,staff,driver')->name('absensi.scan.proses');
+    Route::get('/absensi/enrollment', [AbsensiController::class, 'enrollmentIndex'])->middleware('role:admin,staff,driver')->name('absensi.enrollment');
+    Route::post('/absensi/enrollment/simpan', [AbsensiController::class, 'simpanEnrollment'])->middleware('role:admin,staff,driver')->name('absensi.enrollment.simpan');
+    Route::get('/absensi/riwayat', [AbsensiController::class, 'riwayat'])->middleware('role:admin,staff,driver')->name('absensi.riwayat');
+    Route::get('/absensi/admin/rekap', [AbsensiController::class, 'rekapAdmin'])->middleware('role:admin,staff')->name('absensi.admin.rekap');
 });

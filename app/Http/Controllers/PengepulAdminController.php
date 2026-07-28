@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use App\Models\SampahKatalog;
 use App\Models\PenjemputanOrder;
 use App\Models\User;
@@ -33,9 +34,13 @@ class PengepulAdminController extends Controller
         // Ambil stok gudang ter-agregasi
         $stok = DB::table('stok_gudang')
             ->join('sampah_katalog', 'stok_gudang.material_id', '=', 'sampah_katalog.id')
-            ->select('sampah_katalog.nama_material', 'sampah_katalog.icon',
+            ->select('sampah_katalog.id as material_id', 'sampah_katalog.nama_material', 'sampah_katalog.icon',
                 DB::raw("SUM(CASE WHEN tipe_stok = 'masuk' THEN jumlah_kg ELSE -jumlah_kg END) as total_berat"))
-            ->groupBy('sampah_katalog.nama_material', 'sampah_katalog.icon')
+            ->groupBy('sampah_katalog.id', 'sampah_katalog.nama_material', 'sampah_katalog.icon')
+            ->get();
+
+        $distribusiList = \App\Models\DistribusiSupplier::with(['material', 'admin', 'suratKeluar'])
+            ->orderByDesc('id')
             ->get();
 
         return view('halaman/pengepul/admin_dashboard', [
@@ -45,6 +50,7 @@ class PengepulAdminController extends Controller
             'kas' => $kas,
             'saldoKas' => $saldoKas,
             'stok' => $stok,
+            'distribusiList' => $distribusiList
         ]);
     }
 
@@ -194,8 +200,21 @@ class PengepulAdminController extends Controller
                     'order_id' => $order->id,
                     'tipe_transaksi' => 'pengeluaran',
                     'jumlah_uang' => $payout,
-                    'keterangan' => 'Pembayaran sampah ' . ($request->payment_method === 'cash' ? 'Tunai (Cash)' : 'Transfer Bank/E-Wallet') . ' oleh Admin ke Warga via Order ' . $order->order_no
+                    'keterangan' => 'Pembayaran sampah ' . ($request->payment_method === 'cash' ? 'Tunai (Cash)' : 'Transfer Digital Otomatis') . ' oleh Admin ke Warga via Order ' . $order->order_no
                 ]);
+
+                // Otomatis Tambah Saldo Digital Warga
+                $warga = User::find($order->user_id);
+                if ($warga) {
+                    $warga->increment('saldo', $payout);
+
+                    Notifikasi::create([
+                        'user_id' => $warga->id,
+                        'judul' => 'Transfer Otomatis Berhasil',
+                        'pesan' => 'Transfer otomatis sebesar Rp ' . number_format($payout, 0, ',', '.') . ' telah masuk ke Saldo Akun Anda dari Order ' . $order->order_no,
+                        'url' => route('pengepul.warga.index')
+                    ]);
+                }
             }
 
             if ($order->biaya_jemput > 0) {
@@ -224,10 +243,168 @@ class PengepulAdminController extends Controller
 
     public function cetakSuratJalan($id)
     {
-        $order = PenjemputanOrder::with(['warga', 'driver', 'items.material'])->findOrFail($id);
+        // 1. Cek PenjemputanOrder
+        $order = PenjemputanOrder::with(['warga', 'driver', 'items.material'])->find($id);
+        if ($order) {
+            return view('halaman/pengepul/surat_jalan', [
+                'order' => $order
+            ]);
+        }
 
-        return view('halaman/pengepul/surat_jalan', [
-            'order' => $order
+        // 2. Cek DistribusiSupplier ID atau id_surat_keluar
+        $distribusi = \App\Models\DistribusiSupplier::with(['material', 'admin', 'suratKeluar'])
+            ->where('id', $id)
+            ->orWhere('id_surat_keluar', $id)
+            ->first();
+
+        if ($distribusi) {
+            return view('halaman/pengepul/surat_jalan_supplier', [
+                'distribusi' => $distribusi
+            ]);
+        }
+
+        // 3. Cek SuratKeluarModel
+        $suratKeluar = SuratKeluarModel::find($id);
+        if ($suratKeluar) {
+            $distBySk = \App\Models\DistribusiSupplier::with(['material', 'admin', 'suratKeluar'])
+                ->where('no_surat_jalan', $suratKeluar->no_surat)
+                ->first();
+            if ($distBySk) {
+                return view('halaman/pengepul/surat_jalan_supplier', [
+                    'distribusi' => $distBySk
+                ]);
+            }
+
+            $orderBySk = PenjemputanOrder::with(['warga', 'driver', 'items.material'])
+                ->where('id_surat_keluar', $suratKeluar->id_surat_keluar)
+                ->first();
+            if ($orderBySk) {
+                return view('halaman/pengepul/surat_jalan', [
+                    'order' => $orderBySk
+                ]);
+            }
+        }
+
+        abort(404, 'Dokumen Surat Jalan Tidak Ditemukan');
+    }
+
+    public function topUpSaldo(Request $request)
+    {
+        $request->validate([
+            'jumlah_uang' => 'required|numeric|min:1000',
+            'keterangan'  => 'nullable|string|max:255',
         ]);
+
+        $keterangan = $request->keterangan ? trim($request->keterangan) : 'Top Up Modal Kas Admin';
+
+        KasPengepul::create([
+            'order_id'       => null,
+            'tipe_transaksi' => 'pemasukan',
+            'jumlah_uang'    => $request->jumlah_uang,
+            'keterangan'     => $keterangan,
+        ]);
+
+        return redirect()->back()->with('success', 'Top up saldo kas sebesar Rp ' . number_format($request->jumlah_uang, 0, ',', '.') . ' berhasil ditambahkan!');
+    }
+
+    public function cancelOrder($id)
+    {
+        $order = PenjemputanOrder::findOrFail($id);
+
+        if (in_array($order->status, ['completed', 'cancelled'])) {
+            return redirect()->back()->withErrors(['msg' => 'Order ini sudah ' . $order->status . ' dan tidak dapat dibatalkan.']);
+        }
+
+        $order->update(['status' => 'cancelled']);
+
+        if ($order->id_surat_keluar) {
+            SuratKeluarModel::where('id_surat_keluar', $order->id_surat_keluar)->update([
+                'status_proses' => 'ditolak',
+                'keterangan' => 'Order penjemputan dibatalkan oleh Admin/Staff.'
+            ]);
+        }
+
+        // Notifikasi ke Warga
+        Notifikasi::create([
+            'user_id' => $order->user_id,
+            'judul' => 'Order Dibatalkan Admin',
+            'pesan' => 'Order penjemputan No. ' . $order->order_no . ' telah dibatalkan oleh Admin.',
+            'url' => route('pengepul.warga.index')
+        ]);
+
+        // Notifikasi ke Driver (jika ada)
+        if ($order->driver_id) {
+            Notifikasi::create([
+                'user_id' => $order->driver_id,
+                'judul' => 'Order Dibatalkan Admin',
+                'pesan' => 'Order No. ' . $order->order_no . ' telah dibatalkan oleh Admin.',
+                'url' => route('pengepul.driver.index')
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Order penjemputan sampah berhasil dibatalkan.');
+    }
+
+    public function prosesDistribusiSupplier(Request $request)
+    {
+        $request->validate([
+            'supplier_name' => 'required|string|max:255',
+            'material_id'   => 'required|exists:sampah_katalog,id',
+            'jumlah_kg'     => 'required|numeric|min:0.1',
+            'harga_jual_per_kg' => 'required|numeric|min:1',
+            'keterangan'    => 'nullable|string|max:255'
+        ]);
+
+        $material = SampahKatalog::findOrFail($request->material_id);
+        $totalPendapatan = $request->jumlah_kg * $request->harga_jual_per_kg;
+        $noSuratJalan = 'SJ/SUPPLIER/' . date('YmdHis') . '/' . rand(100, 999);
+
+        DB::beginTransaction();
+        try {
+            $spk = SuratKeluarModel::create([
+                'no_agenda'     => 'DIST-' . rand(1000, 9999),
+                'no_surat'      => $noSuratJalan,
+                'tujuan_surat'  => $request->supplier_name,
+                'tgl_surat'     => date('Y-m-d'),
+                'user_id'       => Auth::id(),
+                'isi_ringkas'   => 'Penjualan & Distribusi Material ' . $material->nama_material . ' (' . $request->jumlah_kg . ' kg) ke ' . $request->supplier_name,
+                'status_proses' => 'diterima',
+                'keterangan'    => 'Surat Jalan Pengiriman Material Sampah ke Pabrik/Supplier'
+            ]);
+
+            \App\Models\DistribusiSupplier::create([
+                'no_surat_jalan'    => $noSuratJalan,
+                'supplier_name'     => $request->supplier_name,
+                'material_id'       => $request->material_id,
+                'jumlah_kg'         => $request->jumlah_kg,
+                'harga_jual_per_kg' => $request->harga_jual_per_kg,
+                'total_pendapatan'  => $totalPendapatan,
+                'id_surat_keluar'   => $spk->id_surat_keluar,
+                'keterangan'        => $request->keterangan,
+                'diproses_oleh'     => Auth::id()
+            ]);
+
+            StokGudang::create([
+                'order_id'    => null,
+                'material_id'  => $request->material_id,
+                'tipe_stok'   => 'keluar',
+                'jumlah_kg'   => $request->jumlah_kg,
+                'keterangan'  => 'Pengiriman material ke Supplier ' . $request->supplier_name . ' (Ref: ' . $noSuratJalan . ')'
+            ]);
+
+            KasPengepul::create([
+                'order_id'       => null,
+                'tipe_transaksi' => 'pemasukan',
+                'jumlah_uang'    => $totalPendapatan,
+                'keterangan'     => 'Hasil Penjualan Material ' . $material->nama_material . ' (' . $request->jumlah_kg . ' kg) ke ' . $request->supplier_name
+            ]);
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Distribusi material ke Supplier ' . $request->supplier_name . ' sebesar Rp ' . number_format($totalPendapatan, 0, ',', '.') . ' berhasil diproses! Stok terpotong & kas bertambah.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withErrors(['msg' => 'Gagal memproses distribusi supplier: ' . $e->getMessage()]);
+        }
     }
 }

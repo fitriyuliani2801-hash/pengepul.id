@@ -34,12 +34,12 @@ class SuratKeluarController extends Controller
             'tujuan_surat' => 'required|string|max:191',
             'isi_ringkas' => 'required|string',
             'tgl_surat' => 'required|date',
-            'file_surat' => 'required|file|mimes:pdf|max:2048',
+            'file_surat' => 'nullable|file|mimes:pdf|max:2048',
             'keterangan' => 'nullable|string|max:255',
             'status_proses' => 'nullable|string|in:baru,diterima,sedang diproses,ditolak',
         ]);
 
-        $filePath = $request->file('file_surat')->store('surat_keluar', 'public');
+        $filePath = $request->hasFile('file_surat') ? $request->file('file_surat')->store('surat_keluar', 'public') : null;
 
         $statusProses = Auth::user()->hasRole('admin', 'staff')
             ? $request->input('status_proses', 'baru')

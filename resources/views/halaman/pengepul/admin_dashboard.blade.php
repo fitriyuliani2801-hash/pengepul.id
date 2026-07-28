@@ -50,33 +50,63 @@
 
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
-            <h1 class="h3 mb-1">Panel Pengepul Sampah</h1>
-            <p class="text-muted mb-0">Atur harga material, pantau kas/stok, sebaran penjemputan, bayar tunai/transfer, dan tugaskan kurir.</p>
+            <h1 class="h3 mb-1 fw-bold text-dark d-flex align-items-center gap-2">
+                <i class="fa-solid fa-industry text-primary"></i> Panel Admin: Kelola & Distribusi Sampah ke Supplier
+            </h1>
+            <p class="text-muted mb-0">Terima penjemputan warga, kelola stok gudang, kas buku, dan distribusikan/jual material ke supplier/pabrik daur ulang.</p>
         </div>
-        <a href="{{ route('home') }}" class="btn btn-outline-secondary">← Kembali</a>
+        <a href="{{ route('home') }}" class="btn btn-outline-secondary rounded-pill px-4">
+            <i class="fa-solid fa-arrow-left me-1"></i> Kembali
+        </a>
     </div>
 
     <!-- STATS / RINGKASAN KAS & GUDANG -->
     <div class="row g-3 mb-4">
         <div class="col-md-4">
-            <div class="page-card p-4 bg-light">
-                <div class="text-muted small fw-semibold text-uppercase">Saldo Kas Buku Pengepul</div>
-                <h2 class="h3 mt-2 mb-1 @if($saldoKas >= 0) text-success @else text-danger @endif">Rp {{ number_format($saldoKas, 0, ',', '.') }}</h2>
-                <small class="text-muted">Total kas masuk & keluar pembelian bahan baku.</small>
+            <div class="page-card p-4 bg-light h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="text-muted small fw-semibold text-uppercase">Saldo Kas Buku Pengepul</div>
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success">💰 Aktif</span>
+                    </div>
+                    <h2 class="h3 mt-2 mb-1 @if($saldoKas >= 0) text-success @else text-danger @endif">Rp {{ number_format($saldoKas, 0, ',', '.') }}</h2>
+                    <small class="text-muted d-block mb-3">Kas bertambah saat jual ke supplier & berkurang saat bayar warga.</small>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-success fw-bold flex-grow-1" data-toggle="modal" data-target="#topUpKasModal" data-bs-toggle="modal" data-bs-target="#topUpKasModal" onclick="openTopUpKasModal()">
+                        ➕ Top Up Saldo
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary fw-bold" onclick="openDistribusiModal()">
+                        🏭 Jual ke Supplier
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-dark fw-semibold" data-toggle="modal" data-target="#riwayatKasModal" data-bs-toggle="modal" data-bs-target="#riwayatKasModal" onclick="openRiwayatKasModal()">
+                        📜 Riwayat
+                    </button>
+                </div>
             </div>
         </div>
         <div class="col-md-8">
             <div class="page-card p-4">
-                <div class="text-muted small fw-semibold text-uppercase mb-3">Ketersediaan Stok Gudang Pengepul</div>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="text-muted small fw-semibold text-uppercase">Ketersediaan Stok Gudang Pengepul</div>
+                    <button type="button" class="btn btn-sm btn-primary fw-bold rounded-pill px-3 py-1" onclick="openDistribusiModal()">
+                        <i class="fa-solid fa-truck-ramp-box me-1"></i> + Distribusi ke Supplier
+                    </button>
+                </div>
                 <div class="row g-2">
                     @forelse($stok as $st)
-                        <div class="col-sm-4">
-                            <div class="p-2 border rounded-3 d-flex align-items-center gap-2 bg-light">
-                                <span class="fs-3">{{ $st->icon ?: '📦' }}</span>
-                                <div>
-                                    <div class="small fw-bold text-dark">{{ $st->nama_material }}</div>
-                                    <div class="text-primary small fw-semibold">{{ number_format($st->total_berat, 1, ',', '.') }} kg</div>
+                        <div class="col-sm-6 col-md-4">
+                            <div class="p-2 border rounded-3 d-flex align-items-center justify-content-between bg-light">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fs-3">{{ $st->icon ?: '📦' }}</span>
+                                    <div>
+                                        <div class="small fw-bold text-dark">{{ $st->nama_material }}</div>
+                                        <div class="text-primary small fw-semibold">{{ number_format($st->total_berat, 1, ',', '.') }} kg</div>
+                                    </div>
                                 </div>
+                                <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 rounded-pill fw-semibold" style="font-size:0.7rem;" onclick="openDistribusiModal({{ $st->material_id }})">
+                                    🏭 Jual
+                                </button>
                             </div>
                         </div>
                     @empty
@@ -171,12 +201,12 @@
                             <td>
                                 @if($ord->status === 'completed')
                                     <div class="text-success fw-bold">Rp {{ number_format($ord->total_final_harga, 0, ',', '.') }}</div>
-                                    <span class="badge bg-{{ $ord->metode_pembayaran === 'transfer' ? 'info' : 'secondary' }} text-capitalize">
+                                    <span class="badge bg-{{ $ord->metode_pembayaran === 'transfer' ? 'primary' : 'success' }} text-white text-capitalize">
                                         {{ $ord->metode_pembayaran === 'transfer' ? '💳 Transfer' : '💵 Cash (Tunai)' }}
                                     </span>
                                     @if($ord->bukti_transfer)
-                                        <div>
-                                            <button type="button" class="btn btn-link p-0 text-decoration-none small text-primary fw-semibold" onclick="openBuktiTransferModal('{{ asset($ord->bukti_transfer) }}')">
+                                        <div class="mt-1">
+                                            <button type="button" class="btn btn-sm btn-primary text-white py-0 px-2 fw-semibold shadow-sm" style="font-size: 0.75rem;" onclick="openBuktiTransferModal('{{ asset($ord->bukti_transfer) }}')">
                                                 📄 Struk TF
                                             </button>
                                         </div>
@@ -252,6 +282,15 @@
                                             🟢 WA
                                         </a>
                                     @endif
+
+                                    @if(in_array($ord->status, ['pending', 'scheduled', 'processing']))
+                                        <form action="{{ route('pengepul.admin.order.cancel', $ord->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan order penjemputan ini?')">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:0.75rem;">
+                                                🚫 Batalkan
+                                            </button>
+                                        </form>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -262,6 +301,63 @@
             </table>
         </div>
         <div class="mt-3">{{ $orders->links() }}</div>
+    </div>
+
+    <!-- RIWAYAT PENJUALAN & DISTRIBUSI KE SUPPLIER / PABRIK -->
+    <div class="page-card p-4 mt-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+            <div>
+                <h2 class="h5 mb-1 text-primary d-flex align-items-center gap-2"><span>🏭</span> Riwayat Distribusi & Penjualan ke Supplier / Pabrik</h2>
+                <p class="text-muted small mb-0">Catatan pengiriman bahan baku daur ulang dari gudang ke pabrik/mitra industri.</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="openDistribusiModal()">
+                <i class="fa-solid fa-truck-ramp-box me-1"></i> + Buat Pengiriman Supplier
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>No. Surat Jalan</th>
+                        <th>Supplier / Pabrik Tujuan</th>
+                        <th>Material Sampah</th>
+                        <th>Jumlah (kg)</th>
+                        <th>Harga Pabrik / kg</th>
+                        <th>Total Pemasukan Kas</th>
+                        <th>Waktu & Admin</th>
+                        <th class="text-center">Surat Jalan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($distribusiList as $dist)
+                        <tr>
+                            <td><span class="font-monospace fw-bold text-dark">{{ $dist->no_surat_jalan }}</span></td>
+                            <td class="fw-bold text-primary">{{ $dist->supplier_name }}</td>
+                            <td>
+                                <span>{{ $dist->material->icon ?? '📦' }} {{ $dist->material->nama_material ?? 'Material' }}</span>
+                            </td>
+                            <td class="fw-bold text-dark">{{ number_format($dist->jumlah_kg, 1, ',', '.') }} kg</td>
+                            <td class="text-muted small">Rp {{ number_format($dist->harga_jual_per_kg, 0, ',', '.') }}</td>
+                            <td class="text-success fw-bold">+ Rp {{ number_format($dist->total_pendapatan, 0, ',', '.') }}</td>
+                            <td>
+                                <div class="small">{{ $dist->created_at ? $dist->created_at->format('d M Y, H:i') : '-' }}</div>
+                                <small class="text-muted"><i class="fa-solid fa-user-check me-1"></i> {{ $dist->admin->name ?? 'Admin' }}</small>
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1" style="font-size:0.78rem;" onclick="openSuratJalanModal('{{ route('pengepul.surat-jalan', $dist->id_surat_keluar ?: $dist->id) }}')">
+                                    📜 Surat Jalan
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">Belum ada pengiriman material ke supplier/pabrik.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -296,7 +392,7 @@
                 <img id="buktiTransferImage" src="" class="img-fluid rounded shadow" alt="Bukti Transfer" style="max-height: 480px; object-fit: contain;">
             </div>
             <div class="modal-footer">
-                <a id="downloadBuktiTransferLink" href="" target="_blank" class="btn btn-outline-primary btn-sm">⬇️ Download / Buka Penuh</a>
+                <a id="downloadBuktiTransferLink" href="" target="_blank" class="btn btn-primary text-white btn-sm fw-bold">⬇️ Download / Buka Penuh</a>
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
             </div>
         </div>
@@ -326,8 +422,8 @@
                         <div class="col-6">
                             <input type="radio" class="btn-check" name="payment_method" id="adminPayTransfer" value="transfer" onchange="toggleAdminTransferFields()">
                             <label class="btn btn-outline-primary w-100 p-3 text-start" for="adminPayTransfer">
-                                <div class="fw-bold fs-6">💳 Transfer Langsung</div>
-                                <small class="text-muted d-block">Transfer ke Rekening Bank / E-Wallet Warga.</small>
+                                <div class="fw-bold fs-6">💳 Transfer ke Saldo Customer</div>
+                                <small class="text-muted d-block">Otomatis masuk langsung ke Saldo Akun Customer.</small>
                             </label>
                         </div>
                     </div>
@@ -338,36 +434,15 @@
                     <div class="d-flex align-items-center gap-2 text-success fw-bold">
                         <span>💵</span> Pembayaran Tunai (Cash)
                     </div>
-                    <small class="text-muted d-block mt-1">Uang tunai diserahkan langsung kepada warga saat penimbangan selesai. Status order otomatis berubah menjadi <strong>Selesai</strong> dan dicatat di buku kas pengeluaran pengepul.</small>
+                    <small class="text-muted d-block mt-1">Uang tunai diserahkan langsung kepada warga saat penimbangan selesai.</small>
                 </div>
 
                 <!-- Transfer Info Box -->
                 <div id="adminTransferBox" class="p-3 bg-primary bg-opacity-10 border border-primary rounded-3 mb-3 d-none">
-                    <h6 class="fw-bold text-primary mb-2">💳 Tujuan Rekening / E-Wallet Warga:</h6>
-                    <div class="row g-3 small">
-                        <div class="col-md-6">
-                            <div class="p-3 border rounded bg-white shadow-sm">
-                                <div class="text-muted small fw-bold mb-1">1. Transfer Bank</div>
-                                <div>Nama Bank: <strong id="adminWargaBankNama" class="text-dark">-</strong></div>
-                                <div>No. Rekening: <strong id="adminWargaBankNomor" class="fs-6 text-primary">-</strong></div>
-                                <button type="button" class="btn btn-xs btn-outline-primary mt-2 py-1 px-2" style="font-size:0.75rem;" onclick="copyTextToClipboard(document.getElementById('adminWargaBankNomor').innerText)">📋 Salin No. Rekening</button>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="p-3 border rounded bg-white shadow-sm">
-                                <div class="text-muted small fw-bold mb-1">2. Transfer E-Wallet</div>
-                                <div>Layanan: <strong id="adminWargaEwalletNama" class="text-dark">-</strong></div>
-                                <div>No. E-Wallet: <strong id="adminWargaEwalletNomor" class="fs-6 text-primary">-</strong></div>
-                                <button type="button" class="btn btn-xs btn-outline-primary mt-2 py-1 px-2" style="font-size:0.75rem;" onclick="copyTextToClipboard(document.getElementById('adminWargaEwalletNomor').innerText)">📋 Salin No. E-Wallet</button>
-                            </div>
-                        </div>
+                    <div class="d-flex align-items-center gap-2 text-primary fw-bold mb-1">
+                        <span>💳</span> Transfer Otomatis ke Saldo Customer
                     </div>
-
-                    <div class="mt-3">
-                        <label class="form-label fw-bold text-dark">Upload Bukti Transfer / Resi Struk (Opsional)</label>
-                        <input type="file" name="bukti_transfer" class="form-control" accept="image/*">
-                        <small class="text-muted">Upload screenshot / foto resi transfer ke warga.</small>
-                    </div>
+                    <small class="text-muted d-block">Sistem akan secara otomatis mentransfer total pembayaran langsung ke **Saldo Digital Akun Customer** tanpa perlu mengunggah bukti fisik.</small>
                 </div>
 
                 <div id="adminItemsContainer" class="mb-3">
@@ -435,6 +510,119 @@
                         <button class="btn btn-primary" type="submit">Kirim</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Top Up Saldo Kas Admin -->
+<div class="modal fade" id="topUpKasModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ route('pengepul.admin.topup') }}" method="POST" class="modal-content border-0 shadow-lg">
+            @csrf
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">💵 Top Up Saldo Kas Pengepul</h5>
+                <button type="button" class="btn-close btn-close-white close text-white" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="p-3 bg-success bg-opacity-10 border border-success rounded-3 mb-3">
+                    <div class="small text-muted fw-semibold">Saldo Kas saat ini:</div>
+                    <div class="fs-4 fw-bold text-success">Rp {{ number_format($saldoKas, 0, ',', '.') }}</div>
+                    <small class="text-muted d-block mt-1">Top up ini menambah kas pemasukan pengepul untuk modal pembayaran sampah ke warga.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Nominal Top Up (Rp)</label>
+                    <div class="input-group mb-2">
+                        <span class="input-group-text fw-bold">Rp</span>
+                        <input type="number" name="jumlah_uang" id="inputTopUpNominal" class="form-control form-control-lg fw-bold text-primary" placeholder="0" required min="1000" step="1000">
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="setTopUpNominal(100000)">+ 100 rb</button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="setTopUpNominal(500000)">+ 500 rb</button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="setTopUpNominal(1000000)">+ 1 Jt</button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="setTopUpNominal(5000000)">+ 5 Jt</button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Keterangan / Catatan Transaksi (Opsional)</label>
+                    <input type="text" name="keterangan" class="form-control" placeholder="Contoh: Suntik Modal Operasional Kas, Transfer Bank Admin, dll.">
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-success fw-bold px-4">✓ Tambah Saldo Kas</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Buku Riwayat Transaksi Kas Pengepul -->
+<div class="modal fade" id="riwayatKasModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold">📜 Buku Riwayat Transaksi Kas Pengepul</h5>
+                <button type="button" class="btn-close btn-close-white close text-white" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">#</th>
+                                <th>Tanggal & Waktu</th>
+                                <th>Tipe Transaksi</th>
+                                <th>Jumlah Uang</th>
+                                <th>Keterangan</th>
+                                <th>Ref Order</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($kas as $index => $k)
+                                <tr>
+                                    <td class="ps-3 fw-bold">{{ $index + 1 }}</td>
+                                    <td>
+                                        <div>{{ $k->created_at ? $k->created_at->format('d M Y') : '-' }}</div>
+                                        <small class="text-muted">{{ $k->created_at ? $k->created_at->format('H:i') : '' }}</small>
+                                    </td>
+                                    <td>
+                                        @if($k->tipe_transaksi === 'pemasukan')
+                                            <span class="badge bg-success text-white">⬆️ Pemasukan / Top Up</span>
+                                        @else
+                                            <span class="badge bg-danger text-white">⬇️ Pengeluaran</span>
+                                        @endif
+                                    </td>
+                                    <td class="fw-bold {{ $k->tipe_transaksi === 'pemasukan' ? 'text-success' : 'text-danger' }}">
+                                        {{ $k->tipe_transaksi === 'pemasukan' ? '+' : '-' }} Rp {{ number_format($k->jumlah_uang, 0, ',', '.') }}
+                                    </td>
+                                    <td>
+                                        <div class="small text-dark">{{ $k->keterangan ?? '-' }}</div>
+                                    </td>
+                                    <td>
+                                        @if($k->order)
+                                            <span class="badge bg-secondary text-white">#{{ $k->order->order_no }}</span>
+                                        @else
+                                            <span class="text-muted small">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">Belum ada catatan riwayat kas.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-bs-dismiss="modal">Tutup</button>
             </div>
         </div>
     </div>
@@ -551,48 +739,69 @@
         }
     }
 
+    function triggerAdminBayarModal(orderId) {
+        var ord = window.adminOrdersData ? window.adminOrdersData[orderId] : null;
+        if (!ord) return;
+        openAdminBayarModal(ord.id, ord.order_no, ord.items, ord.biaya_jemput, ord.warga, ord.total_estimasi_harga);
+    }
+
     function openAdminBayarModal(orderId, orderNo, items, biayaJemput, warga, totalEst) {
         const actionUrl = "{{ url('/pengepul/admin/pembayaran/proses') }}/" + orderId;
         document.getElementById('adminBayarForm').action = actionUrl;
         document.getElementById('adminBayarOrderNo').textContent = orderNo;
         document.getElementById('adminBiayaJemput').value = biayaJemput.toLocaleString('id-ID');
 
-        document.getElementById('adminWargaBankNama').innerText = warga && warga.bank_nama ? warga.bank_nama : 'Belum Diisi';
-        document.getElementById('adminWargaBankNomor').innerText = warga && warga.bank_nomor ? warga.bank_nomor : '-';
-        document.getElementById('adminWargaEwalletNama').innerText = warga && warga.ewallet_nama ? warga.ewallet_nama : 'Belum Diisi';
-        document.getElementById('adminWargaEwalletNomor').innerText = warga && warga.ewallet_nomor ? warga.ewallet_nomor : '-';
+        var elBankNama = document.getElementById('adminWargaBankNama');
+        if (elBankNama) elBankNama.innerText = warga && warga.bank_nama ? warga.bank_nama : 'Belum Diisi';
+        var elBankNomor = document.getElementById('adminWargaBankNomor');
+        if (elBankNomor) elBankNomor.innerText = warga && warga.bank_nomor ? warga.bank_nomor : '-';
+        var elEwalletNama = document.getElementById('adminWargaEwalletNama');
+        if (elEwalletNama) elEwalletNama.innerText = warga && warga.ewallet_nama ? warga.ewallet_nama : 'Belum Diisi';
+        var elEwalletNomor = document.getElementById('adminWargaEwalletNomor');
+        if (elEwalletNomor) elEwalletNomor.innerText = warga && warga.ewallet_nomor ? warga.ewallet_nomor : '-';
 
-        document.getElementById('adminPayCash').checked = true;
+        var payCashEl = document.getElementById('adminPayCash');
+        if (payCashEl) payCashEl.checked = true;
         toggleAdminTransferFields();
 
         const container = document.getElementById('adminItemsContainer');
-        container.innerHTML = '';
-
-        items.forEach(function(item) {
-            const materialName = item.material ? item.material.nama_material : 'Material Sampah';
-            const html = `
-                <div class="row align-items-center mb-3 p-2 border rounded bg-white admin-item-timbang-row" data-price="${item.harga_beli_per_kg}">
-                    <div class="col-md-5">
-                        <strong>${materialName}</strong><br>
-                        <span class="text-muted small">Harga Beli: Rp ${item.harga_beli_per_kg.toLocaleString('id-ID')} / kg</span>
-                        <div class="text-primary small">Estimasi Berat: ${item.estimasi_berat} kg</div>
-                    </div>
-                    <div class="col-md-7">
-                        <label class="form-label small fw-bold">Berat Final Hasil Timbangan (kg)</label>
-                        <div class="input-group">
-                            <input type="number" step="0.1" name="weights[${item.id}]" class="form-control admin-timbang-weight-input" value="${item.final_berat || item.estimasi_berat}" required min="0" oninput="recalculateAdminTotalPayout()">
-                            <span class="input-group-text">kg</span>
+        if (container) {
+            container.innerHTML = '';
+            items.forEach(function(item) {
+                const materialName = item.material ? item.material.nama_material : 'Material Sampah';
+                const html = `
+                    <div class="row align-items-center mb-3 p-2 border rounded bg-white admin-item-timbang-row" data-price="${item.harga_beli_per_kg}">
+                        <div class="col-md-5">
+                            <strong>${materialName}</strong><br>
+                            <span class="text-muted small">Harga Beli: Rp ${item.harga_beli_per_kg.toLocaleString('id-ID')} / kg</span>
+                            <div class="text-primary small">Estimasi Berat: ${item.estimasi_berat} kg</div>
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label small fw-bold">Berat Final Hasil Timbangan (kg)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.1" name="weights[${item.id}]" class="form-control admin-timbang-weight-input" value="${item.final_berat || item.estimasi_berat}" required min="0" oninput="recalculateAdminTotalPayout()">
+                                <span class="input-group-text">kg</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            container.innerHTML += html;
-        });
+                `;
+                container.innerHTML += html;
+            });
+        }
 
         recalculateAdminTotalPayout();
 
-        var modal = new bootstrap.Modal(document.getElementById('adminBayarModal'));
-        modal.show();
+        var elModal = document.getElementById('adminBayarModal');
+        if (!elModal) return;
+        if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+            $('#adminBayarModal').modal('show');
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(elModal) || new bootstrap.Modal(elModal);
+            modal.show();
+        } else {
+            elModal.classList.add('show');
+            elModal.style.display = 'block';
+        }
     }
 
     function recalculateAdminTotalPayout() {
@@ -699,5 +908,111 @@
             }
         });
     }
+
+    function setTopUpNominal(amount) {
+        var input = document.getElementById('inputTopUpNominal');
+        if (input) {
+            input.value = amount;
+        }
+    }
+
+    function openTopUpKasModal() {
+        if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+            $('#topUpKasModal').modal('show');
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('topUpKasModal')) || new bootstrap.Modal(document.getElementById('topUpKasModal'));
+            modal.show();
+        } else {
+            var el = document.getElementById('topUpKasModal');
+            if (el) {
+                el.classList.add('show');
+                el.style.display = 'block';
+            }
+        }
+    }
+
+    function openRiwayatKasModal() {
+        if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+            $('#riwayatKasModal').modal('show');
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(document.getElementById('riwayatKasModal')) || new bootstrap.Modal(document.getElementById('riwayatKasModal'));
+            modal.show();
+        } else {
+            var el = document.getElementById('riwayatKasModal');
+            if (el) {
+                el.classList.add('show');
+                el.style.display = 'block';
+            }
+        }
+    }
+
+    function openDistribusiModal(materialId = null) {
+        var el = document.getElementById('distribusiSupplierModal');
+        if (!el) return;
+        if (materialId) {
+            var select = el.querySelector('select[name="material_id"]');
+            if (select) select.value = materialId;
+        }
+        if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+            $('#distribusiSupplierModal').modal('show');
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+            modal.show();
+        } else {
+            el.classList.add('show');
+            el.style.display = 'block';
+        }
+    }
 </script>
+
+<!-- Modal Distribusi ke Supplier / Pabrik Daur Ulang -->
+<div class="modal fade" id="distribusiSupplierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ route('pengepul.admin.distribusi.store') }}" method="POST" class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            @csrf
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold fs-6"><i class="fa-solid fa-truck-ramp-box me-2"></i> Distribusi & Penjualan Material ke Supplier</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Nama Supplier / Pabrik Tujuan</label>
+                    <input type="text" name="supplier_name" class="form-control" placeholder="Contoh: PT Plastik Daur Ulang Jaya, Bandar Kertas Utama" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Pilih Material Sampah Gudang</label>
+                    <select class="form-select" name="material_id" required>
+                        <option value="">-- Pilih Material --</option>
+                        @foreach($katalog as $kat)
+                            <option value="{{ $kat->id }}">{{ $kat->icon }} {{ $kat->nama_material }} (Harga Beli: Rp {{ number_format($kat->harga_beli_per_kg, 0, ',', '.') }}/kg)</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">Jumlah Berat (kg)</label>
+                        <input type="number" step="0.1" min="0.1" name="jumlah_kg" class="form-control" placeholder="Contoh: 250" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">Harga Jual Pabrik / kg (Rp)</label>
+                        <input type="number" min="1" name="harga_jual_per_kg" class="form-control" placeholder="Contoh: 4500" required>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Catatan / Keterangan (Opsional)</label>
+                    <input type="text" name="keterangan" class="form-control" placeholder="Nomor truk, armada pengirim, dll.">
+                </div>
+                <div class="alert alert-info py-2 px-3 small rounded-3 mb-0">
+                    <i class="fa-solid fa-circle-info me-1"></i> Pengiriman ini otomatis memotong stok gudang, menambah kas pemasukan pengepul, dan menerbitkan <strong>Surat Jalan Supplier</strong>.
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal" data-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">
+                    <i class="fa-solid fa-paper-plane me-1"></i> Proses Pengiriman & Terbitkan SJ
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection

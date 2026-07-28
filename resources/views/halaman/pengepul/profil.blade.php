@@ -28,10 +28,14 @@
 <div class="container-fluid px-0">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
-            <h1 class="h3 mb-1">Pengaturan Profil & Rekening</h1>
+            <h1 class="h3 mb-1 fw-bold text-dark d-flex align-items-center gap-2">
+                <i class="fa-solid fa-user-gear text-purple" style="color: #6b21a8;"></i> Pengaturan Profil & Rekening
+            </h1>
             <p class="text-muted mb-0">Kelola data diri, koordinat rumah penjemputan, dan akun pembayaran (pencairan dana).</p>
         </div>
-        <a href="{{ route('home') }}" class="btn btn-outline-secondary">← Kembali</a>
+        <a href="{{ route('home') }}" class="btn btn-outline-secondary rounded-pill px-4">
+            <i class="fa-solid fa-arrow-left me-1"></i> Kembali
+        </a>
     </div>
 
     <form action="{{ route('profil.update') }}" method="POST" class="row g-4">
@@ -82,11 +86,21 @@
                 <div class="row g-3">
                     <div class="col-sm-6">
                         <label class="form-label fw-semibold">Kata Sandi Baru</label>
-                        <input type="password" class="form-control" name="password" placeholder="Kosongkan jika tidak diganti">
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="profPassword" name="password" placeholder="Kosongkan jika tidak diganti">
+                            <button class="btn btn-outline-secondary bg-light text-muted px-3" type="button" onclick="togglePasswordVisibility('profPassword', 'eyeProf1')">
+                                <i class="fa-solid fa-eye" id="eyeProf1"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-sm-6">
                         <label class="form-label fw-semibold">Konfirmasi Kata Sandi Baru</label>
-                        <input type="password" class="form-control" name="password_confirmation" placeholder="Konfirmasi kata sandi baru">
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="profPasswordConfirm" name="password_confirmation" placeholder="Konfirmasi kata sandi baru">
+                            <button class="btn btn-outline-secondary bg-light text-muted px-3" type="button" onclick="togglePasswordVisibility('profPasswordConfirm', 'eyeProf2')">
+                                <i class="fa-solid fa-eye" id="eyeProf2"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -238,5 +252,19 @@
             });
         }
     });
+
+    function togglePasswordVisibility(inputId, eyeIconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(eyeIconId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
 </script>
 @endsection

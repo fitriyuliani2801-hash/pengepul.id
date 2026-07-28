@@ -33,10 +33,14 @@
 <div class="container-fluid px-0">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
-            <h1 class="h3 mb-1">Tugas Kurir Penjemputan Sampah</h1>
+            <h1 class="h3 mb-1 fw-bold text-dark d-flex align-items-center gap-2">
+                <i class="fa-solid fa-truck-moving text-warning"></i> Tugas Kurir Penjemputan Sampah
+            </h1>
             <p class="text-muted mb-0">Lihat tugas penjemputan, navigasi peta, input timbangan real, dan bayar di lokasi (Transfer / Cash).</p>
         </div>
-        <a href="{{ route('home') }}" class="btn btn-outline-secondary">← Kembali</a>
+        <a href="{{ route('home') }}" class="btn btn-outline-secondary rounded-pill px-4">
+            <i class="fa-solid fa-arrow-left me-1"></i> Kembali
+        </a>
     </div>
 
     <div class="row g-4">
@@ -46,62 +50,78 @@
                 <h2 class="h5 mb-3 text-primary d-flex align-items-center gap-2"><span>🚚</span> Tugas Penjemputan Anda</h2>
                 
                 @forelse($myTasks as $task)
-                    <div class="p-3 border rounded-3 mb-3 {{ $task->status === 'completed' ? 'bg-success bg-opacity-10 border-success' : 'bg-light' }}">
+                    @php
+                        $borderStatus = match($task->status) {
+                            'completed' => 'border-start border-4 border-success bg-white shadow-sm',
+                            'processing' => 'border-start border-4 border-warning bg-white shadow-sm',
+                            'scheduled' => 'border-start border-4 border-info bg-white shadow-sm',
+                            'cancelled' => 'border-start border-4 border-danger bg-white shadow-sm',
+                            default => 'border-start border-4 border-secondary bg-white shadow-sm'
+                        };
+                        $badgeClass = match($task->status) {
+                            'completed' => 'badge-soft-success',
+                            'processing' => 'badge-soft-warning',
+                            'scheduled' => 'badge-soft-info',
+                            'cancelled' => 'badge-soft-danger',
+                            default => 'badge-soft-secondary'
+                        };
+                    @endphp
+                    <div class="p-4 rounded-3 mb-3 border {{ $borderStatus }}">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
-                                <span class="font-monospace fw-bold text-dark">{{ $task->order_no }}</span>
-                                <div class="text-muted small">Warga: <strong>{{ $task->warga->name ?? '-' }}</strong> ({{ $task->warga->no_hp ?? 'No HP -' }})</div>
-                                <div class="text-muted small">Alamat: {{ $task->warga->alamat ?? 'Lihat Pin Peta' }}</div>
+                                <span class="font-monospace fw-bold text-dark fs-6">#{{ $task->order_no }}</span>
+                                <div class="text-dark small mt-1">Warga: <strong class="text-primary">{{ $task->warga->name ?? '-' }}</strong> ({{ $task->warga->no_hp ?? 'No HP -' }})</div>
+                                <div class="text-secondary small"><i class="fa-solid fa-location-dot me-1 text-danger"></i> {{ $task->warga->alamat ?? 'Lihat Pin Peta' }}</div>
                             </div>
-                            @php
-                                $badge = match($task->status) {
-                                    'scheduled' => 'info',
-                                    'processing' => 'warning',
-                                    'completed' => 'success',
-                                    'cancelled' => 'danger',
-                                    default => 'secondary'
-                                };
-                            @endphp
-                            <span class="badge bg-{{ $badge }} text-capitalize p-2">
+                            <span class="badge {{ $badgeClass }} badge-pill-custom text-capitalize px-3 py-1.5 fw-bold">
                                 {{ $task->status === 'completed' ? '✓ Selesai' : $task->status }}
                             </span>
                         </div>
 
-                        <div class="row g-2 mb-3 small text-muted">
-                            <div class="col-6">📅 Jadwal: <strong>{{ $task->tgl_jemput }}</strong> ({{ $task->jam_jemput }})</div>
-                            <div class="col-6">📍 Jarak: <strong>{{ round($task->jarak_km, 2) }} km</strong></div>
-                            <div class="col-12">📝 Estimasi Jenis Sampah:
-                                <ul class="mb-0 mt-1">
+                        <div class="row g-2 my-2 py-2 border-top border-bottom small text-dark">
+                            <div class="col-6"><i class="fa-regular fa-calendar me-1 text-primary"></i> Jadwal: <strong>{{ $task->tgl_jemput }}</strong> ({{ $task->jam_jemput }})</div>
+                            <div class="col-6"><i class="fa-solid fa-route me-1 text-info"></i> Jarak: <strong>{{ round($task->jarak_km, 2) }} km</strong></div>
+                            <div class="col-12 mt-2">
+                                <strong><i class="fa-solid fa-boxes-stacked me-1 text-warning"></i> Estimasi Jenis Sampah:</strong>
+                                <ul class="mb-0 mt-1 text-secondary ps-3">
                                     @foreach($task->items as $itm)
-                                        <li>{{ $itm->material->nama_material ?? 'Material' }} (Estimasi: {{ $itm->estimasi_berat }} kg)</li>
+                                        <li><strong>{{ $itm->material->nama_material ?? 'Material' }}</strong> (Estimasi: {{ $itm->estimasi_berat }} kg)</li>
                                     @endforeach
                                 </ul>
                             </div>
                         </div>
 
                         <!-- ACTIONS -->
-                        <div class="d-flex flex-wrap gap-2">
+                        <div class="d-flex flex-wrap gap-2 mt-3">
                             @if($task->status === 'scheduled')
                                 <form action="{{ route('pengepul.driver.pickup.start', $task->id) }}" method="POST" class="flex-grow-1">
                                     @csrf
-                                    <button class="btn btn-sm btn-warning w-100 py-2">▶ Mulai Perjalanan Ke Lokasi</button>
+                                    <button class="btn btn-sm btn-warning w-100 py-2 fw-bold text-dark rounded-pill">
+                                        <i class="fa-solid fa-play me-1"></i> Mulai Perjalanan Ke Lokasi
+                                    </button>
                                 </form>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="showRouteOnMap({{ $task->latitude }}, {{ $task->longitude }}, '{{ addslashes($task->warga->name ?? 'Warga') }}')">🗺️ Peta Rute</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showRouteOnMap({{ $task->latitude }}, {{ $task->longitude }}, '{{ addslashes($task->warga->name ?? 'Warga') }}')">
+                                    <i class="fa-solid fa-map me-1"></i> Peta Rute
+                                </button>
                             @elseif($task->status === 'processing')
                                 <button type="button" 
-                                        class="btn btn-sm btn-success flex-grow-1 py-2" 
+                                        class="btn btn-sm btn-success flex-grow-1 py-2 fw-bold rounded-pill shadow-sm" 
                                         onclick="triggerDriverTimbangModal({{ $task->id }})">
-                                    ⚖️ Timbang & Bayar (Transfer/Cash)
+                                    <i class="fa-solid fa-scale-balanced me-1"></i> Timbang & Bayar (Transfer/Cash)
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="showRouteOnMap({{ $task->latitude }}, {{ $task->longitude }}, '{{ addslashes($task->warga->name ?? 'Warga') }}')">🗺️ Peta Rute</button>
-                                <button type="button" class="btn btn-sm btn-outline-info" onclick="updateDriverLiveLocation({{ $task->id }})">📍 Kirim Posisi Saya</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showRouteOnMap({{ $task->latitude }}, {{ $task->longitude }}, '{{ addslashes($task->warga->name ?? 'Warga') }}')">
+                                    <i class="fa-solid fa-map me-1"></i> Peta Rute
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3" onclick="updateDriverLiveLocation({{ $task->id }})">
+                                    <i class="fa-solid fa-location-arrow me-1"></i> Kirim Posisi
+                                </button>
                             @elseif($task->status === 'completed')
-                                <div class="w-100 text-success fw-bold small bg-white p-2 border border-success rounded text-center mb-2">
-                                    ✓ Penjemputan Selesai! Final Bayar ke Warga: Rp {{ number_format($task->total_final_harga, 0, ',', '.') }} ({{ strtoupper($task->metode_pembayaran ?: 'CASH') }})
+                                <div class="w-100 bg-success bg-opacity-10 text-success fw-bold small p-3 border border-success rounded-3 text-center mb-2">
+                                    <i class="fa-solid fa-circle-check me-1"></i> Penjemputan Selesai! Final Bayar ke Warga: <strong>Rp {{ number_format($task->total_final_harga, 0, ',', '.') }}</strong> ({{ strtoupper($task->metode_pembayaran ?: 'CASH') }})
                                     @if($task->bukti_transfer)
-                                        <div class="mt-1">
-                                            <button type="button" class="btn btn-link p-0 text-decoration-none small text-primary fw-semibold" onclick="openBuktiTransferModal('{{ asset($task->bukti_transfer) }}')">
-                                                📄 Lihat Struk TF
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-sm btn-success text-white fw-bold py-1 px-3 rounded-pill shadow-sm" onclick="openBuktiTransferModal('{{ asset($task->bukti_transfer) }}')">
+                                                <i class="fa-solid fa-receipt me-1"></i> Lihat Struk Pembayaran
                                             </button>
                                         </div>
                                     @endif
@@ -109,12 +129,14 @@
                             @endif
 
                             <!-- Chat, Surat Jalan, & WA Buttons -->
-                            <div class="d-flex flex-wrap gap-1 w-100 mt-1">
-                                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" onclick="openSuratJalanModal('{{ route('pengepul.surat-jalan', $task->id) }}')">
-                                    📜 Surat Jalan
+                            <div class="d-flex flex-wrap gap-2 w-100 mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill py-1.5 px-3" onclick="openSuratJalanModal('{{ route('pengepul.surat-jalan', $task->id) }}')">
+                                    <i class="fa-solid fa-scroll me-1"></i> Surat Jalan
                                 </button>
 
-                                <button type="button" class="btn btn-sm btn-dark py-1 flex-grow-1" onclick="openDriverChatModal({{ $task->id }}, '{{ $task->order_no }}')">💬 Chat Web Warga</button>
+                                <button type="button" class="btn btn-sm btn-dark rounded-pill py-1.5 px-3 flex-grow-1" onclick="openDriverChatModal({{ $task->id }}, '{{ $task->order_no }}')">
+                                    <i class="fa-solid fa-comments me-1"></i> Chat Web Warga
+                                </button>
 
                                 @php
                                     $wargaHp = preg_replace('/[^0-9]/', '', (string)($task->warga->no_hp ?? ''));
@@ -124,7 +146,9 @@
                                     $waMsg = rawurlencode("Halo Kak " . ($task->warga->name ?? '') . ", saya petugas pengepul untuk penjemputan order #" . $task->order_no . ".");
                                 @endphp
                                 @if(!empty($wargaHp))
-                                    <a href="https://wa.me/{{ $wargaHp }}?text={{ $waMsg }}" target="_blank" class="btn btn-sm btn-success py-1 px-3">🟢 WA</a>
+                                    <a href="https://wa.me/{{ $wargaHp }}?text={{ $waMsg }}" target="_blank" class="btn btn-sm btn-success rounded-pill py-1.5 px-3 fw-bold">
+                                        <i class="fa-brands fa-whatsapp me-1"></i> WA
+                                    </a>
                                 @endif
                             </div>
                         </div>
@@ -211,8 +235,8 @@
                         <div class="col-6">
                             <input type="radio" class="btn-check" name="payment_method" id="payTransfer" value="transfer" onchange="toggleTransferFields()">
                             <label class="btn btn-outline-primary w-100 p-3 text-start" for="payTransfer">
-                                <div class="fw-bold fs-6">💳 Transfer Langsung</div>
-                                <small class="text-muted d-block">Transfer ke Rekening Bank / E-Wallet Warga.</small>
+                                <div class="fw-bold fs-6">💳 Transfer ke Saldo Customer</div>
+                                <small class="text-muted d-block">Otomatis masuk langsung ke Saldo Akun Customer.</small>
                             </label>
                         </div>
                     </div>
@@ -223,36 +247,15 @@
                     <div class="d-flex align-items-center gap-2 text-success fw-bold">
                         <span>💵</span> Pembayaran Tunai (Cash)
                     </div>
-                    <small class="text-muted d-block mt-1">Serahkan uang tunai sebesar total pembayaran kepada warga. Setelah diklik selesai, status transaksi otomatis masuk ke <strong>Histori Status Selesai</strong>.</small>
+                    <small class="text-muted d-block mt-1">Serahkan uang tunai langsung ke warga di lokasi penjemputan.</small>
                 </div>
 
                 <!-- Transfer Info Box -->
                 <div id="transferInfoBox" class="p-3 bg-primary bg-opacity-10 border border-primary rounded-3 mb-3 d-none">
-                    <h6 class="fw-bold text-primary mb-2">💳 Tujuan Rekening / E-Wallet Warga:</h6>
-                    <div class="row g-3 small">
-                        <div class="col-md-6">
-                            <div class="p-3 border rounded bg-white shadow-sm">
-                                <div class="text-muted small fw-bold mb-1">1. Transfer Bank</div>
-                                <div>Bank: <strong id="wargaBankNama" class="text-dark">-</strong></div>
-                                <div>No. Rekening: <strong id="wargaBankNomor" class="fs-6 text-primary">-</strong></div>
-                                <button type="button" class="btn btn-xs btn-outline-primary mt-2 py-1 px-2" style="font-size:0.75rem;" onclick="copyDriverClipboard(document.getElementById('wargaBankNomor').innerText)">📋 Salin No. Rekening</button>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="p-3 border rounded bg-white shadow-sm">
-                                <div class="text-muted small fw-bold mb-1">2. Transfer E-Wallet</div>
-                                <div>Layanan: <strong id="wargaEwalletNama" class="text-dark">-</strong></div>
-                                <div>No. E-Wallet: <strong id="wargaEwalletNomor" class="fs-6 text-primary">-</strong></div>
-                                <button type="button" class="btn btn-xs btn-outline-primary mt-2 py-1 px-2" style="font-size:0.75rem;" onclick="copyDriverClipboard(document.getElementById('wargaEwalletNomor').innerText)">📋 Salin No. E-Wallet</button>
-                            </div>
-                        </div>
+                    <div class="d-flex align-items-center gap-2 text-primary fw-bold mb-1">
+                        <span>💳</span> Transfer Otomatis ke Saldo Customer
                     </div>
-
-                    <div class="mt-3">
-                        <label class="form-label fw-bold text-dark">Upload Bukti Transfer / Resi Struk (Opsional)</label>
-                        <input type="file" name="bukti_transfer" class="form-control" accept="image/*">
-                        <small class="text-muted">Upload screenshot / foto resi transfer ke warga.</small>
-                    </div>
+                    <small class="text-muted d-block">Sistem akan secara otomatis mentransfer total pembayaran langsung ke **Saldo Digital Akun Customer** tanpa perlu mengunggah bukti fisik.</small>
                 </div>
 
                 <div id="timbangItemsContainer" class="mb-3">
@@ -355,6 +358,25 @@
     let wargaMarker = null;
     let routeLine = null;
 
+    window.driverTasksData = {};
+    @if(isset($myTasks))
+        @foreach($myTasks as $task)
+            window.driverTasksData[{{ $task->id }}] = {
+                id: {{ $task->id }},
+                order_no: "{{ $task->order_no }}",
+                biaya_jemput: {{ $task->biaya_jemput ?: 0 }},
+                warga: @json($task->warga),
+                items: @json($task->items)
+            };
+        @endforeach
+    @endif
+
+    function triggerDriverTimbangModal(orderId) {
+        var tsk = window.driverTasksData ? window.driverTasksData[orderId] : null;
+        if (!tsk) return;
+        openTimbangModal(tsk.id, tsk.order_no, tsk.items, tsk.biaya_jemput, tsk.warga);
+    }
+
     const warehouseLat = -6.2088;
     const warehouseLng = 106.8456;
 
@@ -451,42 +473,57 @@
         document.getElementById('timbangOrderNo').textContent = orderNo;
         document.getElementById('timbangBiayaJemput').value = biayaJemput.toLocaleString('id-ID');
 
-        document.getElementById('wargaBankNama').innerText = warga && warga.bank_nama ? warga.bank_nama : 'Belum Diisi';
-        document.getElementById('wargaBankNomor').innerText = warga && warga.bank_nomor ? warga.bank_nomor : '-';
-        document.getElementById('wargaEwalletNama').innerText = warga && warga.ewallet_nama ? warga.ewallet_nama : 'Belum Diisi';
-        document.getElementById('wargaEwalletNomor').innerText = warga && warga.ewallet_nomor ? warga.ewallet_nomor : '-';
+        var elBankNama = document.getElementById('wargaBankNama');
+        if (elBankNama) elBankNama.innerText = warga && warga.bank_nama ? warga.bank_nama : 'Belum Diisi';
+        var elBankNomor = document.getElementById('wargaBankNomor');
+        if (elBankNomor) elBankNomor.innerText = warga && warga.bank_nomor ? warga.bank_nomor : '-';
+        var elEwalletNama = document.getElementById('wargaEwalletNama');
+        if (elEwalletNama) elEwalletNama.innerText = warga && warga.ewallet_nama ? warga.ewallet_nama : 'Belum Diisi';
+        var elEwalletNomor = document.getElementById('wargaEwalletNomor');
+        if (elEwalletNomor) elEwalletNomor.innerText = warga && warga.ewallet_nomor ? warga.ewallet_nomor : '-';
 
-        document.getElementById('payCash').checked = true;
+        var payCashEl = document.getElementById('payCash');
+        if (payCashEl) payCashEl.checked = true;
         toggleTransferFields();
 
         const container = document.getElementById('timbangItemsContainer');
-        container.innerHTML = '';
-
-        items.forEach(function(item) {
-            const materialName = item.material ? item.material.nama_material : 'Material Sampah';
-            const html = `
-                <div class="row align-items-center mb-3 p-2 border rounded bg-white item-timbang-row" data-price="${item.harga_beli_per_kg}">
-                    <div class="col-md-5">
-                        <strong>${materialName}</strong><br>
-                        <span class="text-muted small">Harga Beli: Rp ${item.harga_beli_per_kg.toLocaleString('id-ID')} / kg</span>
-                        <div class="text-primary small">Estimasi Berat: ${item.estimasi_berat} kg</div>
-                    </div>
-                    <div class="col-md-7">
-                        <label class="form-label small fw-bold">Berat Timbangan Real (kg)</label>
-                        <div class="input-group">
-                            <input type="number" step="0.1" name="weights[${item.id}]" class="form-control timbang-weight-input" value="${item.estimasi_berat}" required min="0" oninput="recalculateTotalPayout()">
-                            <span class="input-group-text">kg</span>
+        if (container) {
+            container.innerHTML = '';
+            items.forEach(function(item) {
+                const materialName = item.material ? item.material.nama_material : 'Material Sampah';
+                const html = `
+                    <div class="row align-items-center mb-3 p-2 border rounded bg-white item-timbang-row" data-price="${item.harga_beli_per_kg}">
+                        <div class="col-md-5">
+                            <strong>${materialName}</strong><br>
+                            <span class="text-muted small">Harga Beli: Rp ${item.harga_beli_per_kg.toLocaleString('id-ID')} / kg</span>
+                            <div class="text-primary small">Estimasi Berat: ${item.estimasi_berat} kg</div>
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label small fw-bold">Berat Timbangan Real (kg)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.1" name="weights[${item.id}]" class="form-control timbang-weight-input" value="${item.estimasi_berat}" required min="0" oninput="recalculateTotalPayout()">
+                                <span class="input-group-text">kg</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            container.innerHTML += html;
-        });
+                `;
+                container.innerHTML += html;
+            });
+        }
 
         recalculateTotalPayout();
         
-        var myModal = new bootstrap.Modal(document.getElementById('timbangModal'));
-        myModal.show();
+        var elModal = document.getElementById('timbangModal');
+        if (!elModal) return;
+        if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+            $('#timbangModal').modal('show');
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(elModal) || new bootstrap.Modal(elModal);
+            modal.show();
+        } else {
+            elModal.classList.add('show');
+            elModal.style.display = 'block';
+        }
     }
 
     function recalculateTotalPayout() {

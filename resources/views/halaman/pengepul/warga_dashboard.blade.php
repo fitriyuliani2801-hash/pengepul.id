@@ -54,10 +54,36 @@
 <div class="container-fluid px-0">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
         <div>
-            <h1 class="h3 mb-1">Setor & Jual Sampah</h1>
+            <h1 class="h3 mb-1 fw-bold text-dark d-flex align-items-center gap-2">
+                <i class="fa-solid fa-truck-ramp-box text-success"></i> Setor & Jual Sampah
+            </h1>
             <p class="text-muted mb-0">Tawarkan sampah daur ulang Anda ke Pengepul langsung dari rumah.</p>
         </div>
-        <a href="{{ route('home') }}" class="btn btn-outline-secondary">← Kembali</a>
+        <a href="{{ route('home') }}" class="btn btn-outline-secondary rounded-pill px-4">
+            <i class="fa-solid fa-arrow-left me-1"></i> Kembali
+        </a>
+    </div>
+
+    <!-- WALLET & SALDO DIGITAL WARGA -->
+    <div class="page-card p-4 mb-4 hero-gradient-bg text-white shadow-lg" style="border-radius: var(--radius-xl);">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 position-relative z-1">
+            <div>
+                <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-3 py-1.5 mb-2 small fw-semibold" style="letter-spacing: 0.05em; backdrop-filter: blur(8px);">
+                    <i class="fa-solid fa-wallet me-1"></i> Saldo Digital Penjualan Sampah
+                </span>
+                <h2 class="display-6 fw-extrabold mb-1 text-white">
+                    Rp {{ number_format(auth()->user()->saldo ?? 0, 0, ',', '.') }}
+                </h2>
+                <p class="text-white-50 mb-0 small">
+                    <i class="fa-solid fa-circle-check text-success me-1"></i> Transfer otomatis masuk setiap transaksi penjemputan selesai.
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-light text-primary rounded-pill px-4 fw-bold shadow-sm" onclick="openModalTarikSaldo()">
+                    <i class="fa-solid fa-arrow-up-from-bracket me-1"></i> Tarik Dana / Transfer
+                </button>
+            </div>
+        </div>
     </div>
 
     <div class="row g-4">
@@ -248,16 +274,16 @@
                             </td>
                             <td>
                                 @if($ord->status === 'completed')
-                                    <span class="badge bg-{{ $ord->metode_pembayaran === 'transfer' ? 'info' : 'secondary' }} text-capitalize">
-                                        {{ $ord->metode_pembayaran === 'transfer' ? '💳 Transfer Bank/E-Wallet' : '💵 Cash (Tunai)' }}
-                                    </span>
-                                    @if($ord->bukti_transfer)
-                                        <div>
-                                            <button type="button" class="btn btn-link p-0 text-decoration-none small text-primary fw-semibold" onclick="openBuktiTransferModal('{{ asset($ord->bukti_transfer) }}')">
-                                                📄 Bukti Transfer
-                                            </button>
-                                        </div>
-                                    @endif
+                                     <span class="badge bg-{{ $ord->metode_pembayaran === 'transfer' ? 'primary' : 'success' }} text-white text-capitalize">
+                                         {{ $ord->metode_pembayaran === 'transfer' ? '💳 Transfer Bank/E-Wallet' : '💵 Cash (Tunai)' }}
+                                     </span>
+                                     @if($ord->bukti_transfer)
+                                         <div class="mt-1">
+                                             <button type="button" class="btn btn-sm btn-primary text-white py-0 px-2 fw-semibold shadow-sm" style="font-size: 0.75rem;" onclick="openBuktiTransferModal('{{ asset($ord->bukti_transfer) }}')">
+                                                 📄 Bukti Transfer
+                                             </button>
+                                         </div>
+                                     @endif
                                 @else
                                     <span class="text-muted small">—</span>
                                 @endif
@@ -313,6 +339,15 @@
                                         <a href="https://wa.me/{{ $cleanHp }}?text={{ $waText }}" target="_blank" class="btn btn-sm btn-success py-1 px-2">
                                             🟢 WA
                                         </a>
+                                    @endif
+
+                                    @if(in_array($ord->status, ['pending', 'scheduled', 'processing']))
+                                        <form action="{{ route('pengepul.warga.order.cancel', $ord->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan pesanan penjemputan ini?')">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2">
+                                                🚫 Batalkan
+                                            </button>
+                                        </form>
                                     @endif
                                 </div>
                             </td>
@@ -725,5 +760,121 @@
             }
         });
     }
+
+    function openModalTarikSaldo() {
+        var el = document.getElementById('modalTarikSaldo');
+        if (!el) return;
+        if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+            $('#modalTarikSaldo').modal('show');
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+            modal.show();
+        } else {
+            el.classList.add('show');
+            el.style.display = 'block';
+        }
+    }
 </script>
+
+<!-- Modal Tarik Saldo -->
+<div class="modal fade" id="modalTarikSaldo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold fs-6"><i class="fa-solid fa-money-bill-transfer me-2"></i> Tarik Dana / Transfer Otomatis</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('pengepul.warga.saldo.tarik') }}" method="POST">
+                @csrf
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small rounded-3 mb-3">
+                        <i class="fa-solid fa-circle-info me-1"></i> Saldo tersedia: <strong>Rp {{ number_format(auth()->user()->saldo ?? 0, 0, ',', '.') }}</strong>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Jumlah Penarikan (Rp)</label>
+                        <input type="number" class="form-control" name="jumlah" min="10000" max="{{ auth()->user()->saldo ?? 0 }}" placeholder="Contoh: 50000" required>
+                        <small class="text-muted" style="font-size: 0.75rem;">Minimal penarikan Rp 10.000</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Bank / E-Wallet Tujuan</label>
+                        <select class="form-select" name="tujuan_pembayaran" required>
+                            <option value="BCA" {{ auth()->user()->bank_nama === 'BCA' ? 'selected' : '' }}>BCA</option>
+                            <option value="Mandiri" {{ auth()->user()->bank_nama === 'Mandiri' ? 'selected' : '' }}>Mandiri</option>
+                            <option value="BRI" {{ auth()->user()->bank_nama === 'BRI' ? 'selected' : '' }}>BRI</option>
+                            <option value="BNI" {{ auth()->user()->bank_nama === 'BNI' ? 'selected' : '' }}>BNI</option>
+                            <option value="Gopay" {{ auth()->user()->ewallet_nama === 'Gopay' ? 'selected' : '' }}>Gopay</option>
+                            <option value="OVO" {{ auth()->user()->ewallet_nama === 'OVO' ? 'selected' : '' }}>OVO</option>
+                            <option value="DANA" {{ auth()->user()->ewallet_nama === 'DANA' ? 'selected' : '' }}>DANA</option>
+                            <option value="ShopeePay" {{ auth()->user()->ewallet_nama === 'ShopeePay' ? 'selected' : '' }}>ShopeePay</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Nomor Rekening / HP E-Wallet</label>
+                        <input type="text" class="form-control" name="no_rekening" value="{{ auth()->user()->bank_nomor ?: auth()->user()->ewallet_nomor }}" placeholder="Contoh: 08123456789" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold">
+                        <i class="fa-solid fa-paper-plane me-1"></i> Kirim Transfer Otomatis
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@if(session('open_payout_receipt'))
+    @php($receipt = session('open_payout_receipt'))
+    <!-- Modal Struk Transfer Real Bank -->
+    <div class="modal fade show d-block" id="payoutReceiptModal" tabindex="-1" style="background: rgba(0,0,0,0.6);" aria-hidden="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-success text-white py-3">
+                    <h5 class="modal-title fw-bold fs-6"><i class="fa-solid fa-circle-check me-2"></i> Bukti Transfer Uang Realtime</h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('payoutReceiptModal').remove()"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <div class="fs-1 text-success mb-2">💸</div>
+                    <h4 class="fw-extrabold text-success mb-1">Rp {{ number_format($receipt['amount'], 0, ',', '.') }}</h4>
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-1 mb-3 font-monospace">TRANSFER BERHASIL (BI-FAST)</span>
+                    
+                    <div class="border rounded-3 p-3 bg-light text-start small">
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Penerima:</span>
+                            <strong class="text-dark">{{ $receipt['name'] }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Bank / E-Wallet:</span>
+                            <strong class="text-dark">{{ strtoupper($receipt['bank']) }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">No. Rekening:</span>
+                            <strong class="text-primary font-monospace">{{ $receipt['account'] }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">No. Referensi:</span>
+                            <strong class="text-dark font-monospace" style="font-size:0.75rem;">{{ $receipt['ref_no'] }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 border-bottom">
+                            <span class="text-muted">Ref BI-FAST Bank:</span>
+                            <strong class="text-success font-monospace" style="font-size:0.72rem;">{{ $receipt['bank_ref'] }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted">Waktu Eksekusi:</span>
+                            <span class="text-dark">{{ $receipt['date'] }}</span>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-3" style="font-size:0.75rem;">
+                        <i class="fa-solid fa-shield-halved text-success me-1"></i> Uang dikirim secara otomatis via Gateway Settlement Engine 24/7.
+                    </small>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="window.print()">🖨️ Cetak Struk</button>
+                    <button type="button" class="btn btn-success btn-sm rounded-pill px-4 fw-bold" onclick="document.getElementById('payoutReceiptModal').remove()">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
 @endsection

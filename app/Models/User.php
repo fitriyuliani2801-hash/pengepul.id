@@ -14,9 +14,15 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name', 'email', 'role', 'status', 'password',
-        'no_hp', 'alamat', 'latitude', 'longitude', 
-        'bank_nama', 'bank_nomor', 'ewallet_nama', 'ewallet_nomor'
+        'no_hp', 'alamat', 'latitude', 'longitude', 'saldo',
+        'bank_nama', 'bank_nomor', 'ewallet_nama', 'ewallet_nomor',
+        'face_descriptor', 'face_photo'
     ];
+
+    public function absensi()
+    {
+        return $this->hasMany(Absensi::class, 'user_id');
+    }
 
     /**
      * Field yang disembunyikan saat data user dikonversi ke JSON.
