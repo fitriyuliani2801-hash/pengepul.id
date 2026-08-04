@@ -166,33 +166,7 @@
                             </div>
                         </div>
 
-                        <!-- Kategori: Absensi Karyawan -->
-                        @if($user->hasRole('admin', 'staff', 'driver'))
-                            @php($isAbsensiActive = request()->routeIs('absensi.*'))
-                            <div class="mb-1 mt-2">
-                                <button type="button" class="btn btn-toggle d-inline-flex align-items-center justify-content-between w-100 border-0 bg-transparent text-start fw-bold" data-bs-toggle="collapse" data-toggle="collapse" data-bs-target="#absensi-collapse" data-target="#absensi-collapse" aria-expanded="{{ $isAbsensiActive ? 'true' : 'false' }}">
-                                    <span class="d-flex align-items-center gap-2">
-                                        <i class="fa-solid fa-camera-retro text-primary me-1"></i> Absensi Karyawan
-                                    </span>
-                                    <span class="chevron"><i class="fa-solid fa-chevron-right"></i></span>
-                                </button>
-                                <div class="collapse {{ $isAbsensiActive ? 'show' : '' }} ms-2 ps-2 border-start" id="absensi-collapse" style="border-left: 2px solid #e2e8f0 !important;">
-                                    <nav class="nav flex-column gap-1 mt-1">
-                                        <a class="nav-link d-flex align-items-center gap-2 {{ request()->routeIs('absensi.scan') || request()->routeIs('absensi.enrollment') ? 'active' : '' }}" href="{{ route('absensi.scan') }}">
-                                            <i class="fa-solid fa-face-smile"></i> <span>Scan Wajah</span>
-                                        </a>
-                                        <a class="nav-link d-flex align-items-center gap-2 {{ request()->routeIs('absensi.riwayat') ? 'active' : '' }}" href="{{ route('absensi.riwayat') }}">
-                                            <i class="fa-solid fa-clock-rotate-left"></i> <span>Riwayat Saya</span>
-                                        </a>
-                                        @if($user->hasRole('admin', 'staff'))
-                                            <a class="nav-link d-flex align-items-center gap-2 {{ request()->routeIs('absensi.admin.rekap') ? 'active' : '' }}" href="{{ route('absensi.admin.rekap') }}">
-                                                <i class="fa-solid fa-clipboard-user"></i> <span>Rekap Absensi</span>
-                                            </a>
-                                        @endif
-                                    </nav>
-                                </div>
-                            </div>
-                        @endif
+
 
                         <!-- Kategori: Pengaturan -->
                         @php($isPengaturanActive = request()->routeIs('profil.*'))

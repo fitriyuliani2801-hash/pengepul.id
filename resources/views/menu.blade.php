@@ -162,53 +162,7 @@
         </div>
     </div>
 
-    <!-- GRUP 3: ABSENSI KARYAWAN -->
-    @if($user->hasRole('admin', 'staff', 'driver'))
-        <div class="mb-5">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-                <h2 class="h5 text-dark fw-bold mb-0 d-flex align-items-center gap-2">
-                    <span class="stat-icon-wrapper stat-icon-info" style="width: 36px; height: 36px; font-size: 1.1rem;">
-                        <i class="fa-solid fa-camera-retro"></i>
-                    </span>
-                    Absensi & Presensi Wajah Karyawan
-                </h2>
-            </div>
 
-            <div class="row g-4">
-                <div class="col-12 col-sm-6 col-xl-4">
-                    <a href="{{ route('absensi.scan') }}" class="text-decoration-none">
-                        <div class="dashboard-card p-4 h-100">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <span class="badge badge-soft-primary badge-pill-custom">Absen Wajah</span>
-                                <div class="stat-icon-wrapper stat-icon-primary">
-                                    <i class="fa-solid fa-face-smile"></i>
-                                </div>
-                            </div>
-                            <h3 class="h5 text-dark mb-1 fw-bold">Absensi Scan Wajah</h3>
-                            <p class="text-muted small mb-0">Lakukan Absen Masuk atau Absen Pulang dengan verifikasi kamera scan wajah & GPS.</p>
-                        </div>
-                    </a>
-                </div>
-
-                @if($user->hasRole('admin', 'staff'))
-                    <div class="col-12 col-sm-6 col-xl-4">
-                        <a href="{{ route('absensi.admin.rekap') }}" class="text-decoration-none">
-                            <div class="dashboard-card p-4 h-100">
-                                <div class="d-flex justify-content-between align-items-start mb-3">
-                                    <span class="badge badge-soft-warning badge-pill-custom">Rekap Kehadiran</span>
-                                    <div class="stat-icon-wrapper stat-icon-warning">
-                                        <i class="fa-solid fa-clipboard-user"></i>
-                                    </div>
-                                </div>
-                                <h3 class="h5 text-dark mb-1 fw-bold">Rekap Absensi Karyawan</h3>
-                                <p class="text-muted small mb-0">Pantau rekapitulasi ketepatan waktu, foto bukti scan, dan status kehadiran harian.</p>
-                            </div>
-                        </a>
-                    </div>
-                @endif
-            </div>
-        </div>
-    @endif
 
     <!-- GRUP 4: PENGATURAN & PROFIL -->
     <div class="mb-4">

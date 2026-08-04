@@ -82,6 +82,9 @@
                 <button type="button" class="btn btn-light text-primary rounded-pill px-4 fw-bold shadow-sm" onclick="openModalTarikSaldo()">
                     <i class="fa-solid fa-arrow-up-from-bracket me-1"></i> Tarik Dana / Transfer
                 </button>
+                <button type="button" class="btn btn-warning text-dark rounded-pill px-4 fw-bold shadow-sm" onclick="openGeneralChatModal()">
+                    <i class="fa-solid fa-comments me-1"></i> 💬 Chat Driver / Admin
+                </button>
             </div>
         </div>
     </div>
@@ -359,6 +362,84 @@
             </table>
         </div>
         <div class="mt-3">{{ $myOrders->links() }}</div>
+    </div>
+
+    <!-- SEKSI CHAT LANGSUNG CUSTOMER & DRIVER -->
+    <div class="page-card p-4 mt-4 shadow-sm rounded-4 border-0" id="seksiChatCustomer">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+            <h2 class="h5 mb-0 text-primary d-flex align-items-center gap-2">
+                <span class="fs-4">💬</span> <span>Live Chat Penjemputan (Customer & Driver)</span>
+            </h2>
+            <span class="badge bg-success px-3 py-2 rounded-pill"><i class="fa-solid fa-circle me-1" style="font-size: 0.6rem;"></i> Terhubung Real-Time</span>
+        </div>
+
+        @if($myOrders && $myOrders->count() > 0)
+            <div class="row g-3">
+                <div class="col-md-4 border-end">
+                    <label class="form-label fw-bold text-dark small mb-2"><i class="fa-solid fa-list-check me-1"></i> Pilih Pesanan Penjemputan:</label>
+                    <div class="list-group list-group-flush overflow-auto" style="max-height: 380px;">
+                        @foreach($myOrders as $idx => $ord)
+                            <button type="button" 
+                                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-start py-3 rounded-3 mb-1 border {{ $idx === 0 ? 'active' : '' }}" 
+                                    onclick="selectCustomerChatOrder({{ $ord->id }}, '{{ $ord->order_no }}', this)">
+                                <div>
+                                    <div class="fw-bold">Order #{{ $ord->order_no }}</div>
+                                    <small class="d-block text-opacity-75">🚚 Driver: {{ $ord->driver ? $ord->driver->name : 'Belum Ditugaskan' }}</small>
+                                    <small class="d-block text-opacity-75">📅 {{ $ord->tgl_jemput }}</small>
+                                </div>
+                                <span class="badge bg-warning text-dark text-capitalize" style="font-size: 0.7rem;">{{ $ord->status }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+                
+                <div class="col-md-8 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-center bg-light p-2 px-3 rounded-3 mb-2 border">
+                        <span class="fw-bold text-dark" id="customerChatHeaderTitle">💬 Chat Order #{{ $myOrders->first()->order_no }}</span>
+                        <small class="text-muted" id="customerChatDriverName">Petugas: {{ $myOrders->first()->driver ? $myOrders->first()->driver->name : 'Pengepul Digital' }}</small>
+                    </div>
+
+                    <!-- Preset Quick Reply Buttons -->
+                    <div class="mb-2">
+                        <small class="text-muted fw-semibold d-block mb-1">Balasan Cepat (Klik untuk Mengirim):</small>
+                        <div class="d-flex flex-wrap gap-1">
+                            <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 rounded-pill" style="font-size:0.75rem;" onclick="sendPanelPresetChat('Halo Pak Driver, saya sudah siap di lokasi rumah.')">
+                                ⚡ Saya siap di lokasi
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-info py-1 px-2 rounded-pill" style="font-size:0.75rem;" onclick="sendPanelPresetChat('Apakah bapak driver sudah dekat lokasi?')">
+                                ⚡ Apakah sudah dekat?
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-success py-1 px-2 rounded-pill" style="font-size:0.75rem;" onclick="sendPanelPresetChat('Sampah daur ulang sudah dibungkus rapi.')">
+                                ⚡ Sampah sudah siap
+                            </button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-1 px-2 rounded-pill" style="font-size:0.75rem;" onclick="sendPanelPresetChat('Terima kasih banyak atas penjemputannya.')">
+                                ⚡ Terima kasih
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat Messages Box -->
+                    <div id="customerPanelChatBox" class="chat-box mb-3 d-flex flex-column p-3 bg-light border rounded-3" style="height: 260px; overflow-y: auto;">
+                        <div class="text-center text-muted my-auto">Memuat percakapan...</div>
+                    </div>
+
+                    <!-- Chat Input Form -->
+                    <form id="customerPanelChatForm" onsubmit="submitCustomerPanelChat(event)" class="mt-auto">
+                        <div class="input-group">
+                            <input type="text" id="customerPanelChatInput" class="form-control rounded-start-pill" placeholder="Ketik balasan pesan ke driver..." required>
+                            <button class="btn btn-primary px-4 rounded-end-pill fw-bold" type="submit">
+                                <i class="fa-solid fa-paper-plane me-1"></i> Kirim
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @else
+            <div class="text-center py-4 text-muted">
+                <div class="fs-2 mb-2">💬</div>
+                <div>Belum ada pesanan penjemputan aktif. Silakan ajukan penjemputan sampah terlebih dahulu untuk dapat menggunakan fitur Chat Driver.</div>
+            </div>
+        @endif
     </div>
 </div>
 
@@ -693,17 +774,37 @@
     }
 
     // Web Chat Functionality
-    let currentChatOrderId = null;
-
     function openChatModal(orderId, orderNo) {
         currentChatOrderId = orderId;
         document.getElementById('chatOrderId').value = orderId;
         document.getElementById('chatTitle').innerText = '💬 Chat Order #' + orderNo;
 
-        var modal = new bootstrap.Modal(document.getElementById('chatModal'));
-        modal.show();
+        var modalEl = document.getElementById('chatModal');
+        if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+            $(modalEl).modal('show');
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.show();
+        } else {
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+        }
 
         loadChatMessages(orderId);
+
+        if (chatIntervalId) clearInterval(chatIntervalId);
+        chatIntervalId = setInterval(function() {
+            if (currentChatOrderId) {
+                loadChatMessages(currentChatOrderId);
+            }
+        }, 3000);
+
+        if (typeof $ !== 'undefined') {
+            $(modalEl).off('hidden.bs.modal').on('hidden.bs.modal', function () {
+                if (chatIntervalId) clearInterval(chatIntervalId);
+                chatIntervalId = null;
+            });
+        }
     }
 
     function loadChatMessages(orderId) {
@@ -712,6 +813,7 @@
             .then(data => {
                 if (data.success) {
                     var box = document.getElementById('chatMessagesBox');
+                    var isAtBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 50;
                     box.innerHTML = '';
                     if (data.chats.length === 0) {
                         box.innerHTML = '<div class="text-center text-muted my-auto">Belum ada pesan. Gunakan template di atas atau ketik pesan baru.</div>';
@@ -722,7 +824,9 @@
                             div.innerHTML = `<strong>${chat.sender_name}</strong> <small style="opacity:0.75;">(${chat.created_at})</small><br>${chat.message}`;
                             box.appendChild(div);
                         });
-                        box.scrollTop = box.scrollHeight;
+                        if (isAtBottom || box.children.length <= 1) {
+                            box.scrollTop = box.scrollHeight;
+                        }
                     }
                 }
             });
@@ -730,11 +834,13 @@
 
     function sendPresetChat(msg) {
         document.getElementById('chatInputMessage').value = msg;
-        submitChatMessage(new Event('submit'));
+        submitChatMessage({ preventDefault: function(){} });
     }
 
     function submitChatMessage(e) {
-        e.preventDefault();
+        if (e && typeof e.preventDefault === 'function') {
+            e.preventDefault();
+        }
         var msgInput = document.getElementById('chatInputMessage');
         var msg = msgInput.value.trim();
         var orderId = currentChatOrderId;
@@ -760,6 +866,96 @@
             }
         });
     }
+
+    // Dedicated Panel Chat Functionality
+    let selectedCustomerChatOrderId = @json($myOrders && $myOrders->count() > 0 ? $myOrders->first()->id : null);
+
+    function selectCustomerChatOrder(orderId, orderNo, btnEl) {
+        selectedCustomerChatOrderId = orderId;
+        var headerEl = document.getElementById('customerChatHeaderTitle');
+        if (headerEl) headerEl.innerText = '💬 Chat Order #' + orderNo;
+        
+        if (btnEl) {
+            document.querySelectorAll('#seksiChatCustomer .list-group-item').forEach(el => el.classList.remove('active'));
+            btnEl.classList.add('active');
+        }
+
+        loadCustomerPanelChat();
+    }
+
+    function loadCustomerPanelChat() {
+        if (!selectedCustomerChatOrderId) return;
+
+        fetch(`/pengepul/chat/fetch/${selectedCustomerChatOrderId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    var box = document.getElementById('customerPanelChatBox');
+                    if (!box) return;
+                    var isAtBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 50;
+                    box.innerHTML = '';
+                    if (data.chats.length === 0) {
+                        box.innerHTML = '<div class="text-center text-muted my-auto">Belum ada pesan. Gunakan balasan cepat di atas atau ketik pesan baru.</div>';
+                    } else {
+                        data.chats.forEach(chat => {
+                            var div = document.createElement('div');
+                            div.className = 'chat-bubble ' + (chat.is_me ? 'chat-bubble-me' : 'chat-bubble-other');
+                            div.innerHTML = `<strong>${chat.sender_name}</strong> <small style="opacity:0.75;">(${chat.created_at})</small><br>${chat.message}`;
+                            box.appendChild(div);
+                        });
+                        if (isAtBottom || box.children.length <= 1) {
+                            box.scrollTop = box.scrollHeight;
+                        }
+                    }
+                }
+            });
+    }
+
+    function sendPanelPresetChat(msg) {
+        var input = document.getElementById('customerPanelChatInput');
+        if (input) {
+            input.value = msg;
+            submitCustomerPanelChat({ preventDefault: function(){} });
+        }
+    }
+
+    function submitCustomerPanelChat(e) {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        var msgInput = document.getElementById('customerPanelChatInput');
+        if (!msgInput) return;
+        var msg = msgInput.value.trim();
+        var orderId = selectedCustomerChatOrderId;
+
+        if (!msg || !orderId) return;
+
+        fetch('{{ route("pengepul.chat.send") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                order_id: orderId,
+                message: msg
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                msgInput.value = '';
+                loadCustomerPanelChat();
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (selectedCustomerChatOrderId) {
+            loadCustomerPanelChat();
+            setInterval(function() {
+                loadCustomerPanelChat();
+            }, 3000);
+        }
+    });
 
     function openModalTarikSaldo() {
         var el = document.getElementById('modalTarikSaldo');
@@ -877,4 +1073,22 @@
         </div>
     </div>
 @endif
+
+<!-- Floating Quick Chat Button (ALWAYS VISIBLE FOR CUSTOMER) -->
+<div style="position: fixed; bottom: 25px; right: 25px; z-index: 1050;">
+    <button type="button" class="btn btn-primary btn-lg rounded-circle shadow-lg d-flex align-items-center justify-content-center p-0" 
+            style="width: 62px; height: 62px; border: 3px solid #ffffff; background-color: #2563eb;" 
+            onclick="openGeneralChatModal()"
+            title="Buka Chat Petugas/Driver">
+        <span style="font-size: 1.8rem;">💬</span>
+    </button>
+</div>
+
+<script>
+    function openGeneralChatModal() {
+        var orderId = selectedCustomerChatOrderId || (@json($myOrders && $myOrders->count() > 0 ? $myOrders->first()->id : null)) || 1;
+        var orderNo = (@json($myOrders && $myOrders->count() > 0 ? $myOrders->first()->order_no : 'Umum'));
+        openChatModal(orderId, orderNo);
+    }
+</script>
 @endsection

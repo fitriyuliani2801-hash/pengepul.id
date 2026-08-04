@@ -590,16 +590,39 @@
 
     // Driver Chat Functionality
     let currentDriverChatOrderId = null;
+    let driverChatIntervalId = null;
 
     function openDriverChatModal(orderId, orderNo) {
         currentDriverChatOrderId = orderId;
         document.getElementById('driverChatOrderId').value = orderId;
         document.getElementById('driverChatTitle').innerText = '💬 Chat Order #' + orderNo;
 
-        var modal = new bootstrap.Modal(document.getElementById('driverChatModal'));
-        modal.show();
+        var modalEl = document.getElementById('driverChatModal');
+        if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+            $(modalEl).modal('show');
+        } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.show();
+        } else {
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+        }
 
         loadDriverChatMessages(orderId);
+
+        if (driverChatIntervalId) clearInterval(driverChatIntervalId);
+        driverChatIntervalId = setInterval(function() {
+            if (currentDriverChatOrderId) {
+                loadDriverChatMessages(currentDriverChatOrderId);
+            }
+        }, 3000);
+
+        if (typeof $ !== 'undefined') {
+            $(modalEl).off('hidden.bs.modal').on('hidden.bs.modal', function () {
+                if (driverChatIntervalId) clearInterval(driverChatIntervalId);
+                driverChatIntervalId = null;
+            });
+        }
     }
 
     function loadDriverChatMessages(orderId) {
@@ -608,6 +631,7 @@
             .then(data => {
                 if (data.success) {
                     var box = document.getElementById('driverChatMessagesBox');
+                    var isAtBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 50;
                     box.innerHTML = '';
                     if (data.chats.length === 0) {
                         box.innerHTML = '<div class="text-center text-muted my-auto">Belum ada pesan dengan warga.</div>';
@@ -618,7 +642,9 @@
                             div.innerHTML = `<strong>${chat.sender_name}</strong> <small style="opacity:0.75;">(${chat.created_at})</small><br>${chat.message}`;
                             box.appendChild(div);
                         });
-                        box.scrollTop = box.scrollHeight;
+                        if (isAtBottom || box.children.length <= 1) {
+                            box.scrollTop = box.scrollHeight;
+                        }
                     }
                 }
             });
@@ -626,11 +652,13 @@
 
     function sendDriverPresetChat(msg) {
         document.getElementById('driverChatInputMessage').value = msg;
-        submitDriverChatMessage(new Event('submit'));
+        submitDriverChatMessage({ preventDefault: function(){} });
     }
 
     function submitDriverChatMessage(e) {
-        e.preventDefault();
+        if (e && typeof e.preventDefault === 'function') {
+            e.preventDefault();
+        }
         var msgInput = document.getElementById('driverChatInputMessage');
         var msg = msgInput.value.trim();
         var orderId = currentDriverChatOrderId;
